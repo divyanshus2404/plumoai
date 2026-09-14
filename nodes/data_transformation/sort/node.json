@@ -1,0 +1,27 @@
+{
+  "node_id": "data_transformation.sort",
+  "category": "Data Transformation",
+  "display_name": "Sort",
+  "description": "Sort the incoming list of items by a field, ascending or descending.",
+  "icon": "sort.svg",
+  "entrypoint": "entrypoint.py",
+  "config": {
+    "outputPorts": [{ "portId": "output", "portName": "Output" }],
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "For a list of objects, the key to sort by. Leave empty to sort primitive values (numbers/strings) directly."
+        },
+        "order": {
+          "type": "string",
+          "enum": ["asc", "desc"],
+          "default": "asc"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    }
+  }
+}
