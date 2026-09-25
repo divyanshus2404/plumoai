@@ -1,0 +1,76 @@
+<svg viewBox="0 0 1200 980" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<defs><linearGradient id="grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6D4AFF"/><stop offset="1" stop-color="#2B8CF0"/></linearGradient></defs>
+<rect width="1200" height="980" fill="#0B0D14"/>
+<rect x="0" y="0" width="1200" height="44" fill="#0E111A"/>
+<circle cx="22" cy="22" r="6" fill="#E5695B"/>
+<circle cx="42" cy="22" r="6" fill="#E0A43A"/>
+<circle cx="62" cy="22" r="6" fill="#4FBF8F"/>
+<text x="600.0" y="27" font-size="12.5" fill="#798194" text-anchor="middle">PlumoAI — AI Employee</text>
+<rect x="0" y="44" width="210" height="936" fill="#0E111A"/>
+<rect x="16" y="60" width="26" height="26" rx="7" fill="url(#grad)"/>
+<text x="29" y="78" font-size="14" fill="#fff" text-anchor="middle">◲</text>
+<text x="52" y="72" font-size="13" font-weight="700" fill="#E9ECF4">Alex</text>
+<text x="52" y="87" font-size="10.5" fill="#798194">Automation Employee</text>
+<text x="22" y="122" font-size="13" fill="#A8B0C2" font-weight="400">New Chat</text>
+<rect x="8" y="142" width="194" height="30" rx="8" fill="rgba(139,107,255,.14)"/>
+<text x="22" y="162" font-size="13" fill="#8B6BFF" font-weight="700">AI Agents</text>
+<text x="22" y="202" font-size="13" fill="#A8B0C2" font-weight="400">Skills</text>
+<text x="22" y="242" font-size="13" fill="#A8B0C2" font-weight="400">Workflows</text>
+<text x="22" y="282" font-size="13" fill="#A8B0C2" font-weight="400">Activities</text>
+<rect x="211" y="44" width="989" height="936" fill="#0B0D14"/>
+<text x="239" y="80" font-size="17" font-weight="800" fill="#E9ECF4">Workflow Architect</text>
+<rect x="426" y="66" width="70" height="20" rx="10" fill="rgba(79,191,143,.15)" stroke="#4FBF8F"/>
+<text x="461" y="80" font-size="10.5" fill="#4FBF8F" text-anchor="middle">connected</text>
+<line x1="211" y1="100" x2="1200" y2="100" stroke="#242A3A"/>
+<rect x="730" y="120" width="430" height="58" rx="14" fill="#1E2536"/>
+<text x="748" y="145" font-size="13.5" fill="#E9ECF4">Design a daily job-hunting workflow: search jobs,</text>
+<text x="748" y="164" font-size="13.5" fill="#E9ECF4">keep strong matches, and log them to a sheet.</text>
+<rect x="239" y="200" width="839" height="690" rx="14" fill="#10131C" stroke="#242A3A"/>
+<circle cx="225" cy="218" r="12" fill="#141824" stroke="#8B6BFF"/>
+<text x="225" y="222" font-size="12" fill="#8B6BFF" text-anchor="middle">⬡</text>
+<text x="259" y="234" font-size="18" fill="#E9ECF4" font-weight="800">Daily Job Hunt</text>
+<rect x="404" y="219" width="150" height="20" rx="10" fill="rgba(224,164,58,.15)" stroke="#E0A43A"/>
+<text x="479" y="233" font-size="10.5" fill="#E0A43A" text-anchor="middle">⚠ ready · needs setup</text>
+<text x="259" y="260" font-size="13" fill="#798194">Finds and logs matching jobs every morning.</text>
+<text x="259" y="290" font-size="12.5" fill="#E9ECF4" font-weight="700">Flow:</text>
+<text x="299" y="290" font-size="12.5" fill="#A8B0C2">  Schedule Trigger → Web Search → AI Agent → Split Out →</text>
+<text x="299" y="307" font-size="12.5" fill="#A8B0C2">Remove Duplicates → Filter → AI Writer → Google Sheets</text>
+<text x="259" y="335" font-size="13.5" fill="#E9ECF4" font-weight="700">🧩 Build these steps, in order</text>
+<text x="259" y="359" font-size="13" fill="#E9ECF4" font-weight="700">1. ⏱️ Schedule Trigger</text>
+<rect x="569" y="346" width="479" height="19" rx="5" fill="#0B0D14"/>
+<text x="577" y="359" font-size="11.5" font-family="ui-monospace,Menlo,monospace" fill="#8B6BFF">⚙ run daily at 09:00</text>
+<text x="259" y="384" font-size="13" fill="#E9ECF4" font-weight="700">2. 🤖 Web Search</text>
+<rect x="569" y="371" width="479" height="19" rx="5" fill="#0B0D14"/>
+<text x="577" y="384" font-size="11.5" font-family="ui-monospace,Menlo,monospace" fill="#8B6BFF">⚙ {roles} {location} jobs</text>
+<text x="259" y="409" font-size="13" fill="#E9ECF4" font-weight="700">3. 🤖 AI Agent</text>
+<rect x="569" y="396" width="479" height="19" rx="5" fill="#0B0D14"/>
+<text x="577" y="409" font-size="11.5" font-family="ui-monospace,Menlo,monospace" fill="#8B6BFF">⚙ extract title, company, link → JSON</text>
+<text x="259" y="434" font-size="13" fill="#E9ECF4" font-weight="700">4. 🔧 Split Out</text>
+<rect x="569" y="421" width="479" height="19" rx="5" fill="#0B0D14"/>
+<text x="577" y="434" font-size="11.5" font-family="ui-monospace,Menlo,monospace" fill="#8B6BFF">⚙ one job per item</text>
+<text x="259" y="459" font-size="13" fill="#E9ECF4" font-weight="700">5. 🔧 Remove Duplicates</text>
+<rect x="569" y="446" width="479" height="19" rx="5" fill="#0B0D14"/>
+<text x="577" y="459" font-size="11.5" font-family="ui-monospace,Menlo,monospace" fill="#8B6BFF">⚙ compare by link</text>
+<text x="259" y="484" font-size="13" fill="#E9ECF4" font-weight="700">6. 🔧 Filter</text>
+<rect x="569" y="471" width="479" height="19" rx="5" fill="#0B0D14"/>
+<text x="577" y="484" font-size="11.5" font-family="ui-monospace,Menlo,monospace" fill="#8B6BFF">⚙ match_score &gt;= 70</text>
+<text x="259" y="509" font-size="13" fill="#E9ECF4" font-weight="700">7. 🤖 AI Writer</text>
+<rect x="569" y="496" width="479" height="19" rx="5" fill="#0B0D14"/>
+<text x="577" y="509" font-size="11.5" font-family="ui-monospace,Menlo,monospace" fill="#8B6BFF">⚙ tailored cover letter, 120 words</text>
+<text x="259" y="534" font-size="13" fill="#E9ECF4" font-weight="700">8. 🤖 Google Sheets</text>
+<rect x="569" y="521" width="479" height="19" rx="5" fill="#0B0D14"/>
+<text x="577" y="534" font-size="11.5" font-family="ui-monospace,Menlo,monospace" fill="#8B6BFF">⚙ append title, company, link, score</text>
+<text x="259" y="565" font-size="13.5" fill="#E9ECF4" font-weight="700">🧰 Tools used</text>
+<text x="259" y="587" font-size="12.5" fill="#A8B0C2">• Web Search — search the web for jobs</text>
+<text x="259" y="605" font-size="12.5" fill="#A8B0C2">• AI Writer — draft the cover letter</text>
+<text x="259" y="623" font-size="12.5" fill="#A8B0C2">• Google Sheets — read/write the tracker  ·  🔑 needs a connected account</text>
+<rect x="255" y="635" width="799" height="88" rx="10" fill="#0E1119" stroke="#E0A43A"/>
+<text x="269" y="653" font-size="13" fill="#E0A43A" font-weight="700">⚠️ Break check — ready, with warnings</text>
+<text x="269" y="675" font-size="12.5" fill="#A8B0C2">✅ Starts with exactly one trigger</text>
+<text x="269" y="693" font-size="12.5" fill="#A8B0C2">✅ Every node exists in the node catalog</text>
+<text x="269" y="711" font-size="12.5" fill="#A8B0C2">⚠️ Connect an account before running: Google Sheets</text>
+<rect x="239" y="924" width="933" height="38" rx="12" fill="#141824" stroke="#242A3A"/>
+<text x="257" y="948" font-size="13" fill="#798194">Message Workflow Architect…  (try: “what tools are available?”)</text>
+<rect x="1130" y="928" width="30" height="30" rx="9" fill="url(#grad)"/>
+<text x="1145" y="948" font-size="14" fill="#fff" text-anchor="middle">↑</text>
+</svg>
