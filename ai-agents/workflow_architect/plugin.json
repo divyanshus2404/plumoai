@@ -1,0 +1,9 @@
+{
+  "plugin_id": "workflow_architect",
+  "app_codes": ["workflow_architect"],
+  "type": "python_tool_agent",
+  "display_name": "Workflow Architect",
+  "description": "Designs a complete PlumoAI workflow from a plain-language spec. Give it a goal, the inputs you will provide, and the outputs you want, and it returns an ordered, node-by-node build plan (each node's config and how they connect) using only real nodes, validated against the available node catalog.",
+  "icon": "workflow_architect.svg",
+  "entrypoint": "entrypoint.py"
+}
