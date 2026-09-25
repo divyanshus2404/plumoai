@@ -417,36 +417,59 @@ NOTE: This produces the design/plan. It does not draw the workflow on the canvas
         status = "breaks" if errs else ("warnings" if warns else "pass")
         return {"status": status, "checks": checks}
 
+    @staticmethod
+    def _node_emoji(node: str) -> str:
+        """A small type glyph for the chat, chosen from the canonical node name."""
+        if node in _TRIGGERS:
+            return "⏱️"
+        if node in ("Switch", "IF Else", "Wait", "Set Variables", "End Workflow",
+                    "Execute Sub-workflow", "Split In Batches"):
+            return "🔀"
+        if node in ("Filter", "Limit", "Remove Duplicates", "Split Out", "Sort"):
+            return "🔧"
+        if node == "JavaScript":
+            return "💻"
+        return "🤖"  # AI Agents
+
     def _render_markdown(self, plan: Dict[str, Any], warnings: List[str], check: Optional[Dict[str, Any]] = None) -> str:
         lines: List[str] = []
         name = str(plan.get("workflow_name") or "Workflow").strip()
-        lines.append(f"# {name}")
+        # Title + one-line status badge so the verdict is visible at a glance.
+        badge = ""
+        if check:
+            badge = {
+                "pass": "  ✅ ready to build",
+                "warnings": "  ⚠️ ready · needs setup",
+                "breaks": "  ❌ will not run",
+            }.get(check.get("status", ""), "")
+        lines.append(f"# {name}{badge}")
         summary = str(plan.get("summary") or "").strip()
         if summary:
-            lines.append(f"\n{summary}\n")
-        lines.append("## Nodes")
-        for n in plan.get("nodes", []):
-            if not isinstance(n, dict):
-                continue
+            lines.append(f"\n> {summary}\n")
+
+        nodes = [n for n in plan.get("nodes", []) if isinstance(n, dict)]
+
+        # Compact flow line — the whole shape at a glance.
+        flow = " → ".join(str(n.get("node", "?")) for n in nodes)
+        if flow:
+            lines.append(f"**Flow:** {flow}\n")
+
+        lines.append("## 🧩 Build these steps, in order")
+        for n in nodes:
             step = n.get("step", "?")
-            node = n.get("node", "?")
-            cat = n.get("category", "")
+            node = str(n.get("node", "?"))
             cfg = str(n.get("config") or "").strip()
             purpose = str(n.get("purpose") or "").strip()
-            head = f"{step}. **{node}**"
-            if cat:
-                head += f"  _({cat})_"
-            lines.append(head)
+            lines.append(f"\n**{step}. {self._node_emoji(node)} {node}**")
             if purpose:
-                lines.append(f"   - {purpose}")
+                lines.append(f"> {purpose}")
             if cfg:
-                lines.append(f"   - Config: {cfg}")
-        conns = str(plan.get("connections") or "").strip()
-        if conns:
-            lines.append(f"\n## Connections\n{conns}")
+                lines.append(f"`⚙ {cfg}`")
+
         notes = str(plan.get("notes") or "").strip()
         if notes:
-            lines.append(f"\n## Notes\n{notes}")
+            lines.append(f"\n## 📌 Notes\n{notes}")
+
         if check and check.get("checks"):
             status = check.get("status", "pass")
             header = {
@@ -455,7 +478,7 @@ NOTE: This produces the design/plan. It does not draw the workflow on the canvas
                 "breaks": "## ❌ Break check — this workflow will not run",
             }.get(status, "## Break check")
             lines.append("\n" + header)
-            icon = {"ok": "✓", "warning": "⚠", "error": "✕"}
+            icon = {"ok": "✅", "warning": "⚠️", "error": "❌"}
             for c in check["checks"]:
                 lines.append(f"- {icon.get(c['level'], '-')} {c['message']}")
         elif warnings:
