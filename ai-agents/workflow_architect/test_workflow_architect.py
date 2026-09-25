@@ -179,6 +179,54 @@ class BreakCheckTests(unittest.TestCase):
         self.assertIn("Break check", final["result"]["response"])
 
 
+class ToolCatalogTests(unittest.TestCase):
+    def test_reference_lists_categories_and_key_marker(self):
+        ref = wa._tools_reference()
+        for cat in ("Triggers", "Data", "AI & Reasoning", "Communication", "Data & CRM"):
+            self.assertIn(cat, ref)
+        self.assertIn("🔑", ref)                      # credential marker present
+        self.assertIn("Google Sheets", ref)
+        self.assertIn("Web Search", ref)
+
+    def test_only_installed_tools(self):
+        # Slack and GitHub are NOT installed in this setup — must not appear.
+        self.assertNotIn("Slack", wa._ALL_TOOL_NAMES)
+        self.assertNotIn("GitHub", wa._ALL_TOOL_NAMES)
+        # real installed ones are present
+        for t in ("Gmail", "Apify", "SendGrid", "WhatsApp Business", "Upwork"):
+            self.assertIn(t, wa._ALL_TOOL_NAMES)
+
+    def test_credentials_derived_correctly(self):
+        self.assertIn("Gmail", wa._NEEDS_CREDENTIAL)
+        self.assertIn("Google Sheets", wa._NEEDS_CREDENTIAL)
+        self.assertNotIn("Filter", wa._NEEDS_CREDENTIAL)      # built-in node, no account
+        self.assertNotIn("AI Agent", wa._NEEDS_CREDENTIAL)
+
+    def test_wants_tools_reference_intent(self):
+        for yes in ("what tools are available?", "which tool for sending email", "list tools"):
+            self.assertTrue(wa._wants_tools_reference(yes), yes)
+        long_spec = "every morning search jobs, dedupe, filter, and log them to a sheet " * 3
+        self.assertFalse(wa._wants_tools_reference(long_spec))
+
+    def test_run_returns_tools_reference_without_llm(self):
+        # No llm_provider needed — the reference is static.
+        agent = wa.WorkflowArchitectAgentTool(llm_provider=None)
+        _, final = _run(_collect(agent, user_query="what tools are available?", tool_args=None))
+        self.assertTrue(final["success"])
+        self.assertTrue(final["result"].get("tools"))
+        self.assertIn("Available tools", final["result"]["response"])
+
+    def test_design_output_has_tools_used_section(self):
+        plan_json = ('{"workflow_name":"W","nodes":['
+                     '{"step":1,"node":"Schedule Trigger","category":"Trigger"},'
+                     '{"step":2,"node":"Gmail","category":"AI Agent"}]}')
+        agent = wa.WorkflowArchitectAgentTool(llm_provider=FakeLLM(plan_json))
+        _, final = _run(_collect(agent, user_query="build it", tool_args=None))
+        resp = final["result"]["response"]
+        self.assertIn("Tools used", resp)
+        self.assertIn("🔑", resp)   # Gmail needs an account
+
+
 class JsonParsingTests(unittest.TestCase):
     def setUp(self):
         self.agent = wa.WorkflowArchitectAgentTool(llm_provider=None)

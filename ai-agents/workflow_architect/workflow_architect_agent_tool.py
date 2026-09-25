@@ -49,54 +49,78 @@ def event(event_type: str, content: Any) -> Dict:
 
 
 # ---------------------------------------------------------------------------
-# Node catalog — the real building-block nodes available in the workflow editor.
-# Grouped by the categories the editor's "Add node" panel shows. AI Agents are
-# many and can be enabled per-workspace, so only the most common ones are listed
-# here as examples; callers can extend the catalog at runtime via
-# tool_args["extra_nodes"] or app_config["extra_nodes"] (a list of node names)
-# so a newly added node never gets falsely flagged as unknown.
+# Tool catalog — the tools actually preloaded in this PlumoAI setup (built-in
+# workflow nodes + the installed AI Agent plugins). Each entry is
+# (category, name, what it is for, needs a connected account). This is the
+# single source of truth: the design prompt is grounded on it (so the agent
+# only picks appropriate, real tools), the break-checker validates against it,
+# and the "tools reference" is rendered from it. Callers can add tools at
+# runtime via tool_args["extra_nodes"] / app_config["extra_nodes"].
 # ---------------------------------------------------------------------------
-NODE_CATALOG: Dict[str, List[str]] = {
-    "Canvas": ["Sticky Note"],
-    "Trigger": [
-        "Webhook Trigger",
-        "Manual Trigger",
-        "Execute Sub-workflow Trigger",
-        "Schedule Trigger",
-    ],
-    "Flow / Logic": [
-        "IF Else",
-        "Switch",
-        "Wait",
-        "Execute Sub-workflow",
-        "Set Variables",
-        "Split In Batches",
-        "End Workflow",
-    ],
-    "Data Transformation": [
-        "Filter",
-        "Limit",
-        "Remove Duplicates",
-        "Split Out",
-        "Sort",
-    ],
-    "Code": ["JavaScript"],
-    "AI Agents (examples — many more can be enabled)": [
-        "AI Agent",
-        "Web Search",
-        "AI Writer",
-        "Chart Maker",
-        "Knowledge Base Search",
-        "Google Sheets",
-        "Gmail",
-        "Apify",
-        "Apollo.io",
-        "Notion",
-        "GitHub",
-        "Slack",
-        "Discord",
-    ],
-}
+TOOL_CATALOG: List[Tuple[str, str, str, bool]] = [
+    # category, name, purpose, needs_account
+    ("Triggers", "Schedule Trigger", "start on a one-time or recurring schedule", False),
+    ("Triggers", "Webhook Trigger", "start when an external webhook is called", False),
+    ("Triggers", "Manual Trigger", "start manually when you run it", False),
+    ("Triggers", "Execute Sub-workflow Trigger", "start when another workflow calls this one", False),
+
+    ("Logic & Flow", "IF Else", "split the path on one true/false condition", False),
+    ("Logic & Flow", "Switch", "route down one of several branches by rules", False),
+    ("Logic & Flow", "Wait", "pause the workflow (a delay, or until a time)", False),
+    ("Logic & Flow", "Set Variables", "set or rename fields for later steps to use", False),
+    ("Logic & Flow", "Split In Batches", "loop over items in fixed-size batches", False),
+    ("Logic & Flow", "Execute Sub-workflow", "run another workflow as a step", False),
+    ("Logic & Flow", "End Workflow", "stop the workflow cleanly", False),
+    ("Logic & Flow", "Loop Executor", "expand a batch goal into per-item steps", False),
+
+    ("Data", "Filter", "keep only items matching conditions", False),
+    ("Data", "Limit", "keep the first or last N items", False),
+    ("Data", "Remove Duplicates", "drop repeated items", False),
+    ("Data", "Split Out", "turn a list into one item each", False),
+    ("Data", "Sort", "order items by a field", False),
+    ("Data", "JavaScript", "run custom JavaScript to transform or filter data", False),
+
+    ("AI & Reasoning", "AI Agent", "one LLM call — free-form reasoning or answer", False),
+    ("AI & Reasoning", "AI Writer", "draft emails, messages, reports, documents", False),
+    ("AI & Reasoning", "Web Search", "search the web for current info and facts", False),
+    ("AI & Reasoning", "Knowledge Base Search", "search the company / employee knowledge base", False),
+    ("AI & Reasoning", "Chart Maker", "build charts from structured data", False),
+    ("AI & Reasoning", "Image Generation", "generate images from a text description", False),
+    ("AI & Reasoning", "Calculator & DateTime", "do math and date / time calculations", False),
+    ("AI & Reasoning", "Memory", "store and recall long-term user facts", False),
+
+    ("Communication", "Gmail", "send and read email via Gmail", True),
+    ("Communication", "SendGrid", "send transactional email via SendGrid", True),
+    ("Communication", "Discord", "post and manage Discord messages and channels", True),
+    ("Communication", "WhatsApp Business", "send WhatsApp Business messages", True),
+    ("Communication", "Google Chat", "post and manage Google Chat messages", True),
+    ("Communication", "Call", "place and manage voice calls", True),
+    ("Communication", "LinkedIn", "post and manage LinkedIn content", True),
+    ("Communication", "YouTube", "search and manage YouTube videos and channels", True),
+
+    ("Scheduling & Meetings", "Cal.com", "manage Cal.com scheduling and bookings", True),
+    ("Scheduling & Meetings", "Google Calendar", "manage calendar events and availability", True),
+    ("Scheduling & Meetings", "Google Meet", "manage Meet spaces, recordings, transcripts", True),
+
+    ("Data & CRM", "Google Sheets", "read and write Google Sheets", True),
+    ("Data & CRM", "Google Drive", "manage Google Drive files and folders", True),
+    ("Data & CRM", "Apollo.io", "pull B2B contacts and accounts from Apollo", True),
+    ("Data & CRM", "GetLeads.io", "B2B contact database (402M+ contacts)", True),
+    ("Data & CRM", "Apify", "run web-scraping actors on Apify", True),
+    ("Data & CRM", "SQL Server", "query Microsoft SQL Server data", True),
+    ("Data & CRM", "Notion", "read and write Notion workspace content", True),
+    ("Data & CRM", "Upwork", "work with Upwork on the connected account", True),
+    ("Data & CRM", "PlumoAI", "access PlumoAI workspaces, AI Employees, tables", False),
+]
+
+# Category order for rendering the tools reference.
+_CATEGORY_ORDER = [
+    "Triggers", "Logic & Flow", "Data", "Code", "AI & Reasoning",
+    "Communication", "Scheduling & Meetings", "Data & CRM",
+]
+
+_ALL_TOOL_NAMES: List[str] = [name for _, name, _, _ in TOOL_CATALOG]
+_PURPOSE: Dict[str, str] = {name: purpose for _, name, purpose, _ in TOOL_CATALOG}
 
 
 def _norm(name: str) -> str:
@@ -128,35 +152,20 @@ _ALIASES: Dict[str, str] = {
     _norm("end"): "End Workflow",
 }
 
-# Nodes that call an external account and therefore need a connected credential
-# before the workflow can run. Flagged as warnings (not breaks) by the checker —
-# the workflow is structurally valid but the user must connect the account first.
-_NEEDS_CREDENTIAL = frozenset(
-    {
-        "Google Sheets",
-        "Gmail",
-        "Slack",
-        "Apify",
-        "Apollo.io",
-        "Notion",
-        "GitHub",
-        "Discord",
-        "LinkedIn",
-    }
-)
+# Tools that call an external account and need a connected credential before the
+# workflow can run. Derived from the catalog — flagged as warnings (not breaks)
+# by the checker: the workflow is valid, but the account must be connected first.
+_NEEDS_CREDENTIAL = frozenset(name for _, name, _, cred in TOOL_CATALOG if cred)
 
-# Trigger nodes — a workflow needs exactly one, as its first node.
-_TRIGGERS = frozenset(
-    {"Schedule Trigger", "Webhook Trigger", "Manual Trigger", "Execute Sub-workflow Trigger"}
-)
+# Trigger tools — a workflow needs exactly one, as its first node.
+_TRIGGERS = frozenset(name for cat, name, _, _ in TOOL_CATALOG if cat == "Triggers")
 
 
 def _build_index(extra_nodes: Optional[List[str]]) -> Dict[str, str]:
     """Map normalized name -> canonical display name, across the catalog + aliases + extras."""
     index: Dict[str, str] = {}
-    for nodes in NODE_CATALOG.values():
-        for n in nodes:
-            index[_norm(n)] = n
+    for name in _ALL_TOOL_NAMES:
+        index[_norm(name)] = name
     index.update(_ALIASES)
     for n in extra_nodes or []:
         if isinstance(n, str) and n.strip():
@@ -164,11 +173,54 @@ def _build_index(extra_nodes: Optional[List[str]]) -> Dict[str, str]:
     return index
 
 
+def _grouped_catalog() -> "Dict[str, List[Tuple[str, str, bool]]]":
+    """category -> [(name, purpose, needs_account)], in _CATEGORY_ORDER."""
+    grouped: Dict[str, List[Tuple[str, str, bool]]] = {c: [] for c in _CATEGORY_ORDER}
+    for cat, name, purpose, cred in TOOL_CATALOG:
+        grouped.setdefault(cat, []).append((name, purpose, cred))
+    return grouped
+
+
 def _catalog_text() -> str:
-    lines = []
-    for category, nodes in NODE_CATALOG.items():
-        lines.append(f"- {category}: {', '.join(nodes)}")
+    """Catalog for the design prompt: each tool as `name — purpose` so the model
+    can choose tools that actually fit the task."""
+    lines: List[str] = []
+    for cat, items in _grouped_catalog().items():
+        if not items:
+            continue
+        lines.append(f"{cat}:")
+        for name, purpose, _ in items:
+            lines.append(f"  - {name} — {purpose}")
     return "\n".join(lines)
+
+
+def _tools_reference() -> str:
+    """Human-readable tools reference for the chat: what each tool is for and
+    whether it needs a connected account (🔑)."""
+    lines: List[str] = ["# 🧰 Available tools", "", "_What each tool is for — 🔑 means it needs a connected account._", ""]
+    for cat, items in _grouped_catalog().items():
+        if not items:
+            continue
+        lines.append(f"## {cat}")
+        for name, purpose, cred in items:
+            key = " 🔑" if cred else ""
+            lines.append(f"- **{name}**{key} — {purpose}")
+        lines.append("")
+    return "\n".join(lines).strip()
+
+
+def _wants_tools_reference(text: str) -> bool:
+    """True when the user is asking to see the tool list rather than design a
+    workflow — e.g. 'what tools are available', 'which tool for X', 'list tools'."""
+    t = (text or "").lower()
+    if len(t) > 140:  # a long spec is a design request, not a catalog question
+        return False
+    phrases = (
+        "what tools", "which tools", "list tools", "available tools", "tools available",
+        "what tool", "which tool", "show tools", "show me the tools", "what can you use",
+        "what tools do", "tools reference", "list of tools", "what's available",
+    )
+    return any(p in t for p in phrases)
 
 
 class WorkflowArchitectAgentTool(BaseToolAgent):
@@ -197,6 +249,7 @@ USE WHEN:
 - User asks to "design", "plan", "build", or "architect" a workflow / automation
 - User describes an automation in words and wants to know which nodes to add and how to wire them
 - User asks "how would I build a workflow that ..."
+- User asks what tools are available or "which tool is for what" (returns a tools reference)
 
 NOTE: This produces the design/plan. It does not draw the workflow on the canvas automatically.
 """
@@ -271,14 +324,15 @@ NOTE: This produces the design/plan. It does not draw the workflow on the canvas
             "You are a PlumoAI Workflow Architect. You design workflows for a node-based "
             "automation editor. A workflow is an ordered chain of nodes; each node does one "
             "thing and passes its output to the next.\n\n"
-            "You MUST design using ONLY nodes from this catalog:\n"
+            "You MUST design using ONLY tools from this catalog (name — what it is for):\n"
             f"{_catalog_text()}\n\n"
             "Rules:\n"
             "1. Start with exactly one trigger node (Schedule/Webhook/Manual/Execute Sub-workflow Trigger).\n"
-            "2. Use the real node names above, spelled exactly.\n"
-            "3. Prefer built-in Data Transformation / Flow nodes over JavaScript when one fits.\n"
-            "4. Use Split Out before per-item steps; Remove Duplicates/Filter to clean; Switch/IF Else for branching.\n"
-            "5. Keep it as simple as the goal allows — no unnecessary nodes.\n\n"
+            "2. Use the real tool names above, spelled exactly.\n"
+            "3. Choose each tool by its stated purpose — pick the tool whose 'what it is for' matches the step. Do not use a tool for something it is not meant to do.\n"
+            "4. Prefer built-in Data / Logic nodes over JavaScript when one fits.\n"
+            "5. Use Split Out before per-item steps; Remove Duplicates/Filter to clean; Switch/IF Else for branching.\n"
+            "6. Keep it as simple as the goal allows — no unnecessary tools.\n\n"
             "Respond with ONLY a JSON object, no prose, in this exact shape:\n"
             '{\n'
             '  "workflow_name": "string",\n'
@@ -466,6 +520,23 @@ NOTE: This produces the design/plan. It does not draw the workflow on the canvas
             if cfg:
                 lines.append(f"`⚙ {cfg}`")
 
+        # Tools used — what each distinct tool in this plan is for, and whether
+        # it needs a connected account. Answers "which tool for which work/access".
+        seen: List[str] = []
+        for n in nodes:
+            nm = str(n.get("node", "")).strip()
+            if nm and nm not in seen:
+                seen.append(nm)
+        if seen:
+            lines.append("\n## 🧰 Tools used")
+            for nm in seen:
+                purpose = _PURPOSE.get(nm)
+                key = " · 🔑 needs a connected account" if nm in _NEEDS_CREDENTIAL else ""
+                if purpose:
+                    lines.append(f"- **{nm}** — {purpose}{key}")
+                else:
+                    lines.append(f"- **{nm}**{key}")
+
         notes = str(plan.get("notes") or "").strip()
         if notes:
             lines.append(f"\n## 📌 Notes\n{notes}")
@@ -506,6 +577,15 @@ NOTE: This produces the design/plan. It does not draw the workflow on the canvas
                 out = {"success": False, "error": "No workflow goal/description provided", "result": None}
                 yield event(AgentEvent.RESULT, out)
                 yield event(AgentEvent.FINAL, {"success": False, "error": out["error"], "response": None})
+                return
+
+            # Tools reference: if the user is asking what tools exist (not to design
+            # a workflow), answer straight from the catalog — no LLM call needed.
+            if _wants_tools_reference(goal):
+                reference = _tools_reference()
+                out = {"success": True, "result": reference, "response": reference, "tools": True}
+                yield event(AgentEvent.RESULT, out)
+                yield event(AgentEvent.FINAL, {"success": True, "response": reference, "result": out})
                 return
 
             if not self.llm_provider or not getattr(self.llm_provider, "get_response", None):
