@@ -128,6 +128,28 @@ _ALIASES: Dict[str, str] = {
     _norm("end"): "End Workflow",
 }
 
+# Nodes that call an external account and therefore need a connected credential
+# before the workflow can run. Flagged as warnings (not breaks) by the checker —
+# the workflow is structurally valid but the user must connect the account first.
+_NEEDS_CREDENTIAL = frozenset(
+    {
+        "Google Sheets",
+        "Gmail",
+        "Slack",
+        "Apify",
+        "Apollo.io",
+        "Notion",
+        "GitHub",
+        "Discord",
+        "LinkedIn",
+    }
+)
+
+# Trigger nodes — a workflow needs exactly one, as its first node.
+_TRIGGERS = frozenset(
+    {"Schedule Trigger", "Webhook Trigger", "Manual Trigger", "Execute Sub-workflow Trigger"}
+)
+
 
 def _build_index(extra_nodes: Optional[List[str]]) -> Dict[str, str]:
     """Map normalized name -> canonical display name, across the catalog + aliases + extras."""
@@ -341,7 +363,61 @@ NOTE: This produces the design/plan. It does not draw the workflow on the canvas
 
         return warnings, norm_nodes
 
-    def _render_markdown(self, plan: Dict[str, Any], warnings: List[str]) -> str:
+    def _break_check(self, plan: Dict[str, Any], extra_nodes: List[str]) -> Dict[str, Any]:
+        """Structured "is this workflow breaking anywhere?" check. Returns
+        {"status": "pass"|"warnings"|"breaks", "checks": [{"level","message"}]}.
+        Runs AFTER _validate has normalized node names. Errors ("break") mean the
+        workflow cannot run; warnings mean it runs once the user acts (e.g. connects
+        an account)."""
+        index = _build_index(extra_nodes)
+        checks: List[Dict[str, str]] = []
+
+        def add(level: str, message: str) -> None:
+            checks.append({"level": level, "message": message})
+
+        nodes = plan.get("nodes")
+        if not isinstance(nodes, list) or not nodes:
+            add("error", "The workflow has no nodes.")
+            return {"status": "breaks", "checks": checks}
+
+        names = [str(n.get("node") or "").strip() for n in nodes if isinstance(n, dict)]
+
+        # 1) exactly one trigger, and it comes first
+        trigs = [nm for nm in names if index.get(_norm(nm)) in _TRIGGERS]
+        first_is_trigger = bool(names) and index.get(_norm(names[0])) in _TRIGGERS
+        if not trigs:
+            add("error", "No trigger — the workflow can never start. Add a trigger as the first node.")
+        elif len(trigs) > 1:
+            add("error", f"{len(trigs)} triggers found — a workflow needs exactly one entry point.")
+        elif not first_is_trigger:
+            add("error", "The trigger is not the first node — it must come first.")
+        else:
+            add("ok", "Starts with exactly one trigger.")
+
+        # 2) every node is real
+        unknown = [nm for nm in names if index.get(_norm(nm)) is None]
+        if unknown:
+            for nm in unknown:
+                add("error", f"'{nm}' is not a real node — replace it with a catalog node.")
+        else:
+            add("ok", "Every node exists in the node catalog.")
+
+        # 3) a branch node should not be the last node
+        last_canonical = index.get(_norm(names[-1])) if names else None
+        if last_canonical in ("Switch", "IF Else"):
+            add("warning", f"The last node is '{last_canonical}' — each branch should end in an action or End Workflow.")
+
+        # 4) credential-required nodes
+        creds = sorted({index.get(_norm(nm)) for nm in names if index.get(_norm(nm)) in _NEEDS_CREDENTIAL})
+        if creds:
+            add("warning", "Connect an account before running: " + ", ".join(creds) + ".")
+
+        errs = sum(1 for c in checks if c["level"] == "error")
+        warns = sum(1 for c in checks if c["level"] == "warning")
+        status = "breaks" if errs else ("warnings" if warns else "pass")
+        return {"status": status, "checks": checks}
+
+    def _render_markdown(self, plan: Dict[str, Any], warnings: List[str], check: Optional[Dict[str, Any]] = None) -> str:
         lines: List[str] = []
         name = str(plan.get("workflow_name") or "Workflow").strip()
         lines.append(f"# {name}")
@@ -371,7 +447,18 @@ NOTE: This produces the design/plan. It does not draw the workflow on the canvas
         notes = str(plan.get("notes") or "").strip()
         if notes:
             lines.append(f"\n## Notes\n{notes}")
-        if warnings:
+        if check and check.get("checks"):
+            status = check.get("status", "pass")
+            header = {
+                "pass": "## ✅ Break check — all checks passed",
+                "warnings": "## ⚠️ Break check — ready, with warnings",
+                "breaks": "## ❌ Break check — this workflow will not run",
+            }.get(status, "## Break check")
+            lines.append("\n" + header)
+            icon = {"ok": "✓", "warning": "⚠", "error": "✕"}
+            for c in check["checks"]:
+                lines.append(f"- {icon.get(c['level'], '-')} {c['message']}")
+        elif warnings:
             lines.append("\n## ⚠️ Validation")
             for w in warnings:
                 lines.append(f"- {w}")
@@ -434,7 +521,8 @@ NOTE: This produces the design/plan. It does not draw the workflow on the canvas
                 return
 
             warnings, _ = self._validate(plan, params["extra_nodes"])
-            markdown = self._render_markdown(plan, warnings)
+            check = self._break_check(plan, params["extra_nodes"])
+            markdown = self._render_markdown(plan, warnings, check)
 
             out = {
                 "success": True,
@@ -442,6 +530,8 @@ NOTE: This produces the design/plan. It does not draw the workflow on the canvas
                 "response": markdown,
                 "structured": plan,
                 "warnings": warnings,
+                "check": check,
+                "status": check["status"],
             }
             yield event(AgentEvent.RESULT, out)
             yield event(AgentEvent.FINAL, {"success": True, "response": markdown, "result": out})

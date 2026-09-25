@@ -122,6 +122,63 @@ class ValidationTests(unittest.TestCase):
         self.assertTrue(any("no nodes" in w.lower() for w in warnings))
 
 
+class BreakCheckTests(unittest.TestCase):
+    def setUp(self):
+        self.agent = wa.WorkflowArchitectAgentTool(llm_provider=None)
+
+    def test_clean_workflow_passes(self):
+        plan = {"nodes": [
+            {"step": 1, "node": "Schedule Trigger", "category": "Trigger"},
+            {"step": 2, "node": "Filter", "category": "Data Transformation"},
+        ]}
+        r = self.agent._break_check(plan, extra_nodes=[])
+        self.assertEqual(r["status"], "pass")
+        self.assertTrue(any(c["level"] == "ok" and "one trigger" in c["message"] for c in r["checks"]))
+
+    def test_no_trigger_is_a_break(self):
+        plan = {"nodes": [{"step": 1, "node": "Filter", "category": "Data Transformation"}]}
+        r = self.agent._break_check(plan, extra_nodes=[])
+        self.assertEqual(r["status"], "breaks")
+        self.assertTrue(any(c["level"] == "error" and "never start" in c["message"] for c in r["checks"]))
+
+    def test_unknown_node_is_a_break(self):
+        plan = {"nodes": [
+            {"step": 1, "node": "Manual Trigger", "category": "Trigger"},
+            {"step": 2, "node": "MagicMatcher", "category": "AI Agent"},
+        ]}
+        r = self.agent._break_check(plan, extra_nodes=[])
+        self.assertEqual(r["status"], "breaks")
+        self.assertTrue(any("MagicMatcher" in c["message"] and c["level"] == "error" for c in r["checks"]))
+
+    def test_credential_node_is_a_warning_not_break(self):
+        plan = {"nodes": [
+            {"step": 1, "node": "Schedule Trigger", "category": "Trigger"},
+            {"step": 2, "node": "Google Sheets", "category": "AI Agent"},
+        ]}
+        r = self.agent._break_check(plan, extra_nodes=[])
+        self.assertEqual(r["status"], "warnings")
+        self.assertTrue(any(c["level"] == "warning" and "Google Sheets" in c["message"] for c in r["checks"]))
+
+    def test_trailing_switch_warns(self):
+        plan = {"nodes": [
+            {"step": 1, "node": "Webhook Trigger", "category": "Trigger"},
+            {"step": 2, "node": "Switch", "category": "Flow / Logic"},
+        ]}
+        r = self.agent._break_check(plan, extra_nodes=[])
+        self.assertTrue(any(c["level"] == "warning" and "branch" in c["message"] for c in r["checks"]))
+
+    def test_check_appears_in_run_output(self):
+        import asyncio as _a
+        plan_json = ('{"workflow_name":"W","nodes":['
+                     '{"step":1,"node":"schedule","category":"Trigger"},'
+                     '{"step":2,"node":"Google Sheets","category":"AI Agent"}]}')
+        agent = wa.WorkflowArchitectAgentTool(llm_provider=FakeLLM(plan_json))
+        _, final = _run(_collect(agent, user_query="build it", tool_args=None))
+        self.assertIn("check", final["result"])
+        self.assertEqual(final["result"]["status"], "warnings")
+        self.assertIn("Break check", final["result"]["response"])
+
+
 class JsonParsingTests(unittest.TestCase):
     def setUp(self):
         self.agent = wa.WorkflowArchitectAgentTool(llm_provider=None)
